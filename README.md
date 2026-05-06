@@ -11,7 +11,11 @@ end-to-end, from a "hello world" up to a partial-success async HTTP
 client. Development history, journal, and findings live on a separate
 branch in this repo.
 
+For the full story, see the blog series
+[*One Bin to Rule Them All*][blog].
+
 [cosmo]: https://github.com/jart/cosmopolitan
+[blog]: https://blog.crisidev.org/tags/series-one-bin-to-rule-them-all/
 
 * [What's here](#what's-here)
 * [Prerequisites](#prerequisites)
