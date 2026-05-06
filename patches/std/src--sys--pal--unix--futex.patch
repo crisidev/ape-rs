@@ -1,0 +1,24 @@
+--- a/library/std/src/sys/pal/unix/futex.rs
++++ b/library/std/src/sys/pal/unix/futex.rs
+@@ -35,8 +35,10 @@
+     // Calculate the timeout as an absolute timespec.
+     //
+     // Overflows are rounded up to an infinite timeout (None).
++    // SAFETY (cosmo patch): libc::CLOCK_MONOTONIC is extern static.
++    let clock_monotonic = unsafe { libc::CLOCK_MONOTONIC };
+     let timespec = timeout
+-        .and_then(|d| Timespec::now(libc::CLOCK_MONOTONIC).checked_add_duration(&d))
++        .and_then(|d| Timespec::now(clock_monotonic).checked_add_duration(&d))
+         .and_then(|t| t.to_timespec());
+ 
+     loop {
+@@ -55,7 +57,8 @@
+                     let umtx_timeout = timespec.map(|t| libc::_umtx_time {
+                         _timeout: t,
+                         _flags: libc::UMTX_ABSTIME,
+-                        _clockid: libc::CLOCK_MONOTONIC as u32,
++                        // cosmo patch: libc::CLOCK_MONOTONIC is extern static.
++                        _clockid: clock_monotonic as u32,
+                     });
+                     let umtx_timeout_ptr = umtx_timeout.as_ref().map_or(null(), |t| t as *const _);
+                     let umtx_timeout_size = umtx_timeout.as_ref().map_or(0, |t| size_of_val(t));

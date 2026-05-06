@@ -1,0 +1,22 @@
+--- a/library/std/src/sys/random/linux.rs
++++ b/library/std/src/sys/random/linux.rs
+@@ -123,6 +123,19 @@
+                         GETRANDOM_AVAILABLE.store(false, Relaxed);
+                         break;
+                     }
++                    // cosmo patch: under cfg(cosmo), errno is the
++                    // native OS's numeric value (see F-002). Windows
++                    // in particular returns Win32 error codes that
++                    // don't match any Linux errno constant, so this
++                    // arm is reached on cosmo-Windows when getrandom
++                    // is unavailable. Degrade to /dev/urandom instead
++                    // of panicking. Non-cosmo builds keep the panic.
++                    #[cfg(cosmo)]
++                    _ => {
++                        GETRANDOM_AVAILABLE.store(false, Relaxed);
++                        break;
++                    }
++                    #[cfg(not(cosmo))]
+                     _ => panic!("failed to generate random data"),
+                 }
+             }

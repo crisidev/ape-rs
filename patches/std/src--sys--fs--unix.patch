@@ -1,0 +1,12 @@
+--- a/library/std/src/sys/fs/unix.rs
++++ b/library/std/src/sys/fs/unix.rs
+@@ -1357,7 +1357,8 @@
+     }
+ 
+     pub fn open_c(path: &CStr, opts: &OpenOptions) -> io::Result<File> {
+-        let flags = libc::O_CLOEXEC
++        // SAFETY (cosmo patch): libc::O_CLOEXEC is an extern static.
++        let flags = unsafe { libc::O_CLOEXEC }
+             | opts.get_access_mode()?
+             | opts.get_creation_mode()?
+             | (opts.custom_flags as c_int & !libc::O_ACCMODE);

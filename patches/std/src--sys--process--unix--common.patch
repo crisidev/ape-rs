@@ -1,0 +1,27 @@
+--- a/library/std/src/sys/process/unix/common.rs
++++ b/library/std/src/sys/process/unix/common.rs
+@@ -668,13 +668,17 @@
+         match fd.read_to_end(dst) {
+             Ok(_) => Ok(true),
+             Err(e) => {
+-                if e.raw_os_error() == Some(libc::EWOULDBLOCK)
+-                    || e.raw_os_error() == Some(libc::EAGAIN)
+-                {
+-                    Ok(false)
+-                } else {
+-                    Err(e)
+-                }
++                // cosmo patch: under target_env="cosmo" the raw errno is
++                // the native OS's numeric value, which doesn't match
++                // the Linux-musl compile-time libc::EWOULDBLOCK /
++                // libc::EAGAIN (see F-002). Use ErrorKind::WouldBlock
++                // (produced by our patched decode_error_kind) instead.
++                #[cfg(cosmo)]
++                let is_wouldblock = e.kind() == io::ErrorKind::WouldBlock;
++                #[cfg(not(cosmo))]
++                let is_wouldblock = e.raw_os_error() == Some(libc::EWOULDBLOCK)
++                    || e.raw_os_error() == Some(libc::EAGAIN);
++                if is_wouldblock { Ok(false) } else { Err(e) }
+             }
+         }
+     }

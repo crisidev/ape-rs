@@ -1,0 +1,75 @@
+--- a/library/std/src/os/unix/net/ancillary.rs
++++ b/library/std/src/os/unix/net/ancillary.rs
+@@ -510,22 +510,31 @@
+             let data = libc::CMSG_DATA(cmsg).cast();
+             let data = from_raw_parts(data, data_len);
+ 
+-            match (*cmsg).cmsg_level {
+-                libc::SOL_SOCKET => match (*cmsg).cmsg_type {
+-                    libc::SCM_RIGHTS => Ok(AncillaryData::as_rights(data)),
++            // cosmo patch: libc::SOL_SOCKET is an extern static under
++            // target_env="cosmo"; can't be used in match arms. Rewrote
++            // as if/else cascade.
++            let cmsg_level = (*cmsg).cmsg_level;
++            let cmsg_type = (*cmsg).cmsg_type;
++            if cmsg_level == libc::SOL_SOCKET {
++                if cmsg_type == libc::SCM_RIGHTS {
++                    Ok(AncillaryData::as_rights(data))
++                } else {
+                     #[cfg(any(target_os = "android", target_os = "linux", target_os = "cygwin"))]
+-                    libc::SCM_CREDENTIALS => Ok(AncillaryData::as_credentials(data)),
++                    if cmsg_type == libc::SCM_CREDENTIALS {
++                        return Ok(AncillaryData::as_credentials(data));
++                    }
+                     #[cfg(target_os = "freebsd")]
+-                    libc::SCM_CREDS2 => Ok(AncillaryData::as_credentials(data)),
++                    if cmsg_type == libc::SCM_CREDS2 {
++                        return Ok(AncillaryData::as_credentials(data));
++                    }
+                     #[cfg(target_os = "netbsd")]
+-                    libc::SCM_CREDS => Ok(AncillaryData::as_credentials(data)),
+-                    cmsg_type => {
+-                        Err(AncillaryError::Unknown { cmsg_level: libc::SOL_SOCKET, cmsg_type })
++                    if cmsg_type == libc::SCM_CREDS {
++                        return Ok(AncillaryData::as_credentials(data));
+                     }
+-                },
+-                cmsg_level => {
+-                    Err(AncillaryError::Unknown { cmsg_level, cmsg_type: (*cmsg).cmsg_type })
++                    Err(AncillaryError::Unknown { cmsg_level: libc::SOL_SOCKET, cmsg_type })
+                 }
++            } else {
++                Err(AncillaryError::Unknown { cmsg_level, cmsg_type })
+             }
+         }
+     }
+@@ -714,11 +723,13 @@
+     #[unstable(feature = "unix_socket_ancillary_data", issue = "76915")]
+     pub fn add_fds(&mut self, fds: &[RawFd]) -> bool {
+         self.truncated = false;
++        // SAFETY (cosmo patch): libc::SOL_SOCKET is extern static.
++        let sol_socket = unsafe { libc::SOL_SOCKET };
+         add_to_ancillary_data(
+             &mut self.buffer,
+             &mut self.length,
+             fds,
+-            libc::SOL_SOCKET,
++            sol_socket,
+             libc::SCM_RIGHTS,
+         )
+     }
+@@ -741,11 +752,13 @@
+     #[unstable(feature = "unix_socket_ancillary_data", issue = "76915")]
+     pub fn add_creds(&mut self, creds: &[SocketCred]) -> bool {
+         self.truncated = false;
++        // SAFETY (cosmo patch): libc::SOL_SOCKET is extern static.
++        let sol_socket = unsafe { libc::SOL_SOCKET };
+         add_to_ancillary_data(
+             &mut self.buffer,
+             &mut self.length,
+             creds,
+-            libc::SOL_SOCKET,
++            sol_socket,
+             #[cfg(not(any(target_os = "netbsd", target_os = "freebsd")))]
+             libc::SCM_CREDENTIALS,
+             #[cfg(target_os = "freebsd")]

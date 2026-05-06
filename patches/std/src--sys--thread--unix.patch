@@ -1,0 +1,29 @@
+--- a/library/std/src/sys/thread/unix.rs
++++ b/library/std/src/sys/thread/unix.rs
+@@ -551,7 +551,7 @@
+             // of `nanosleep` which used `CLOCK_REALTIME` even though it is unsupported
+             // on WASIp2. Using `clock_nanosleep` directly bypasses the issue.
+             unsafe fn nanosleep(rqtp: *const libc::timespec, rmtp: *mut libc::timespec) -> libc::c_int {
+-                unsafe { libc::clock_nanosleep(crate::sys::time::Instant::CLOCK_ID, 0, rqtp, rmtp) }
++                unsafe { libc::clock_nanosleep(crate::sys::time::Instant::clock_id(), 0, rqtp, rmtp) }
+             }
+         }
+         _ => {
+@@ -663,7 +663,7 @@
+             loop {
+                 let r = unsafe {
+                     clock_nanosleep(
+-                        crate::sys::time::Instant::CLOCK_ID,
++                        crate::sys::time::Instant::clock_id(),
+                         libc::TIMER_ABSTIME,
+                         &ts,
+                         core::ptr::null_mut(),
+@@ -702,7 +702,7 @@
+         // When we get interrupted (res = EINTR) call clock_nanosleep again
+         loop {
+             let res = libc::clock_nanosleep(
+-                crate::sys::time::Instant::CLOCK_ID,
++                crate::sys::time::Instant::clock_id(),
+                 libc::TIMER_ABSTIME,
+                 &ts,
+                 core::ptr::null_mut(), // not required with TIMER_ABSTIME

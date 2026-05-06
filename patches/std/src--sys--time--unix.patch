@@ -1,0 +1,39 @@
+--- a/library/std/src/sys/time/unix.rs
++++ b/library/std/src/sys/time/unix.rs
+@@ -21,7 +21,8 @@
+     }
+ 
+     pub fn now() -> SystemTime {
+-        SystemTime { t: Timespec::now(libc::CLOCK_REALTIME) }
++        // SAFETY (cosmo patch): libc::CLOCK_REALTIME is extern static.
++        SystemTime { t: Timespec::now(unsafe { libc::CLOCK_REALTIME }) }
+     }
+ 
+     pub fn sub_time(&self, other: &SystemTime) -> Result<Duration, Duration> {
+@@ -63,15 +64,23 @@
+     // `CLOCK_UPTIME_RAW` is based on `mach_absolute_time`, which is the
+     // clock that all timeouts and deadlines are measured against inside
+     // the kernel.
++    // cosmo patch: CLOCK_ID was `const`, but under target_env="cosmo"
++    // libc::CLOCK_MONOTONIC is `extern static` which can't appear in a
++    // const expression. Turned into a function that reads the static at
++    // runtime.
+     #[cfg(target_vendor = "apple")]
+-    pub(crate) const CLOCK_ID: libc::clockid_t = libc::CLOCK_UPTIME_RAW;
++    pub(crate) fn clock_id() -> libc::clockid_t {
++        unsafe { libc::CLOCK_UPTIME_RAW }
++    }
+ 
+     #[cfg(not(target_vendor = "apple"))]
+-    pub(crate) const CLOCK_ID: libc::clockid_t = libc::CLOCK_MONOTONIC;
++    pub(crate) fn clock_id() -> libc::clockid_t {
++        unsafe { libc::CLOCK_MONOTONIC }
++    }
+ 
+     pub fn now() -> Instant {
+         // https://pubs.opengroup.org/onlinepubs/9799919799/functions/clock_getres.html
+-        Instant { t: Timespec::now(Self::CLOCK_ID) }
++        Instant { t: Timespec::now(Self::clock_id()) }
+     }
+ 
+     pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {

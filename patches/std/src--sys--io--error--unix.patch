@@ -1,0 +1,135 @@
+--- a/library/std/src/sys/io/error/unix.rs
++++ b/library/std/src/sys/io/error/unix.rs
+@@ -93,11 +93,75 @@
+     }
+ }
+ 
++// cosmo patch: cosmopolitan does not normalise the numeric value of
++// `errno` across host OSes — on macOS/FreeBSD/OpenBSD/Windows the
++// value stored in the thread-local `errno` is the *native* OS's
++// number, while `libc::E*` in a Linux-musl build still holds the
++// Linux-musl compile-time values. Those disagree (e.g. EAGAIN=11 on
++// Linux, 35 on macOS), which makes std's match-on-errno misclassify
++// errors across the board (see F-002 in FINDINGS.md).
++//
++// Cosmo's libc exposes every errno name as `extern const errno_t X`
++// populated at load time with the host OS's actual value. Under
++// cfg(cosmo) we read those instead of the compile-time libc::E*.
++#[cfg(cosmo)]
++unsafe extern "C" {
++    #[link_name = "E2BIG"]       static COSMO_E2BIG: libc::c_int;
++    #[link_name = "EACCES"]      static COSMO_EACCES: libc::c_int;
++    #[link_name = "EADDRINUSE"]  static COSMO_EADDRINUSE: libc::c_int;
++    #[link_name = "EADDRNOTAVAIL"] static COSMO_EADDRNOTAVAIL: libc::c_int;
++    #[link_name = "EAGAIN"]      static COSMO_EAGAIN: libc::c_int;
++    #[link_name = "EBUSY"]       static COSMO_EBUSY: libc::c_int;
++    #[link_name = "ECONNABORTED"] static COSMO_ECONNABORTED: libc::c_int;
++    #[link_name = "ECONNREFUSED"] static COSMO_ECONNREFUSED: libc::c_int;
++    #[link_name = "ECONNRESET"]  static COSMO_ECONNRESET: libc::c_int;
++    #[link_name = "EDEADLK"]     static COSMO_EDEADLK: libc::c_int;
++    #[link_name = "EDQUOT"]      static COSMO_EDQUOT: libc::c_int;
++    #[link_name = "EEXIST"]      static COSMO_EEXIST: libc::c_int;
++    #[link_name = "EFBIG"]       static COSMO_EFBIG: libc::c_int;
++    #[link_name = "EHOSTUNREACH"] static COSMO_EHOSTUNREACH: libc::c_int;
++    #[link_name = "EINPROGRESS"] static COSMO_EINPROGRESS: libc::c_int;
++    #[link_name = "EINTR"]       static COSMO_EINTR: libc::c_int;
++    #[link_name = "EINVAL"]      static COSMO_EINVAL: libc::c_int;
++    #[link_name = "EISDIR"]      static COSMO_EISDIR: libc::c_int;
++    #[link_name = "ELOOP"]       static COSMO_ELOOP: libc::c_int;
++    #[link_name = "EMLINK"]      static COSMO_EMLINK: libc::c_int;
++    #[link_name = "ENAMETOOLONG"] static COSMO_ENAMETOOLONG: libc::c_int;
++    #[link_name = "ENETDOWN"]    static COSMO_ENETDOWN: libc::c_int;
++    #[link_name = "ENETUNREACH"] static COSMO_ENETUNREACH: libc::c_int;
++    #[link_name = "ENOENT"]      static COSMO_ENOENT: libc::c_int;
++    #[link_name = "ENOMEM"]      static COSMO_ENOMEM: libc::c_int;
++    #[link_name = "ENOSPC"]      static COSMO_ENOSPC: libc::c_int;
++    #[link_name = "ENOSYS"]      static COSMO_ENOSYS: libc::c_int;
++    #[link_name = "ENOTCONN"]    static COSMO_ENOTCONN: libc::c_int;
++    #[link_name = "ENOTDIR"]     static COSMO_ENOTDIR: libc::c_int;
++    #[link_name = "ENOTEMPTY"]   static COSMO_ENOTEMPTY: libc::c_int;
++    #[link_name = "EOPNOTSUPP"]  static COSMO_EOPNOTSUPP: libc::c_int;
++    #[link_name = "EPERM"]       static COSMO_EPERM: libc::c_int;
++    #[link_name = "EPIPE"]       static COSMO_EPIPE: libc::c_int;
++    #[link_name = "EROFS"]       static COSMO_EROFS: libc::c_int;
++    #[link_name = "ESPIPE"]      static COSMO_ESPIPE: libc::c_int;
++    #[link_name = "ESTALE"]      static COSMO_ESTALE: libc::c_int;
++    #[link_name = "ETIMEDOUT"]   static COSMO_ETIMEDOUT: libc::c_int;
++    #[link_name = "ETXTBSY"]     static COSMO_ETXTBSY: libc::c_int;
++    #[link_name = "EXDEV"]       static COSMO_EXDEV: libc::c_int;
++}
++
++#[cfg(not(cosmo))]
+ #[inline]
+ pub fn is_interrupted(errno: i32) -> bool {
+     errno == libc::EINTR
+ }
+ 
++#[cfg(cosmo)]
++#[inline]
++pub fn is_interrupted(errno: i32) -> bool {
++    // SAFETY (cosmo patch): COSMO_EINTR is an extern static populated
++    // by cosmo's libc at load time.
++    errno == unsafe { COSMO_EINTR }
++}
++
++#[cfg(not(cosmo))]
+ pub fn decode_error_kind(errno: i32) -> io::ErrorKind {
+     use io::ErrorKind::*;
+     match errno as libc::c_int {
+@@ -150,6 +214,56 @@
+     }
+ }
+ 
++#[cfg(cosmo)]
++pub fn decode_error_kind(errno: i32) -> io::ErrorKind {
++    use io::ErrorKind::*;
++    // SAFETY (cosmo patch): all COSMO_E* are extern const errno_t
++    // symbols in cosmo's libc, initialised to the host OS's numeric
++    // value at load time. Reading is always safe.
++    let e = errno as libc::c_int;
++    unsafe {
++        if e == COSMO_E2BIG { return ArgumentListTooLong; }
++        if e == COSMO_EADDRINUSE { return AddrInUse; }
++        if e == COSMO_EADDRNOTAVAIL { return AddrNotAvailable; }
++        if e == COSMO_EBUSY { return ResourceBusy; }
++        if e == COSMO_ECONNABORTED { return ConnectionAborted; }
++        if e == COSMO_ECONNREFUSED { return ConnectionRefused; }
++        if e == COSMO_ECONNRESET { return ConnectionReset; }
++        if e == COSMO_EDEADLK { return Deadlock; }
++        if e == COSMO_EDQUOT { return QuotaExceeded; }
++        if e == COSMO_EEXIST { return AlreadyExists; }
++        if e == COSMO_EFBIG { return FileTooLarge; }
++        if e == COSMO_EHOSTUNREACH { return HostUnreachable; }
++        if e == COSMO_EINTR { return Interrupted; }
++        if e == COSMO_EINVAL { return InvalidInput; }
++        if e == COSMO_EISDIR { return IsADirectory; }
++        if e == COSMO_ELOOP { return FilesystemLoop; }
++        if e == COSMO_ENOENT { return NotFound; }
++        if e == COSMO_ENOMEM { return OutOfMemory; }
++        if e == COSMO_ENOSPC { return StorageFull; }
++        if e == COSMO_ENOSYS { return Unsupported; }
++        if e == COSMO_EMLINK { return TooManyLinks; }
++        if e == COSMO_ENAMETOOLONG { return InvalidFilename; }
++        if e == COSMO_ENETDOWN { return NetworkDown; }
++        if e == COSMO_ENETUNREACH { return NetworkUnreachable; }
++        if e == COSMO_ENOTCONN { return NotConnected; }
++        if e == COSMO_ENOTDIR { return NotADirectory; }
++        if e == COSMO_ENOTEMPTY { return DirectoryNotEmpty; }
++        if e == COSMO_EPIPE { return BrokenPipe; }
++        if e == COSMO_EROFS { return ReadOnlyFilesystem; }
++        if e == COSMO_ESPIPE { return NotSeekable; }
++        if e == COSMO_ESTALE { return StaleNetworkFileHandle; }
++        if e == COSMO_ETIMEDOUT { return TimedOut; }
++        if e == COSMO_ETXTBSY { return ExecutableFileBusy; }
++        if e == COSMO_EXDEV { return CrossesDevices; }
++        if e == COSMO_EINPROGRESS { return InProgress; }
++        if e == COSMO_EOPNOTSUPP { return Unsupported; }
++        if e == COSMO_EACCES || e == COSMO_EPERM { return PermissionDenied; }
++        if e == COSMO_EAGAIN { return WouldBlock; }
++    }
++    Uncategorized
++}
++
+ /// Gets a detailed string description for the given error number.
+ pub fn error_string(errno: i32) -> String {
+     const TMPBUF_SZ: usize = 128;

@@ -1,0 +1,29 @@
+[submodule "rust-ape-example"]
+	path = rust-ape-example
+	url = https://github.com/crisidev/rust-ape-example.git
+[submodule "libc-cosmo"]
+	path = libc-cosmo
+	url = https://github.com/crisidev/libc.git
+	branch = libc-0.2-cosmo
+[submodule "ripgrep"]
+	path = ripgrep
+	url = https://github.com/crisidev/ripgrep.git
+[submodule "dog"]
+	path = dog
+	url = https://github.com/crisidev/dog.git
+[submodule "getrandom-cosmo"]
+	path = getrandom-cosmo
+	url = https://github.com/crisidev/getrandom.git
+	branch = getrandom-0.2-cosmo
+[submodule "xh"]
+	path = xh
+	url = https://github.com/crisidev/xh.git
+[submodule "socket2-cosmo"]
+	path = socket2-cosmo
+	url = https://github.com/crisidev/socket2.git
+[submodule "mio-cosmo"]
+	path = mio-cosmo
+	url = https://github.com/crisidev/mio.git
+[submodule "tokio-cosmo"]
+	path = tokio-cosmo
+	url = https://github.com/crisidev/tokio.git

@@ -1,0 +1,13 @@
+--- a/library/std/Cargo.toml
++++ b/library/std/Cargo.toml
+@@ -33,9 +33,7 @@
+ addr2line = { version = "0.25.0", optional = true, default-features = false }
+
+ [target.'cfg(not(all(windows, target_env = "msvc")))'.dependencies]
+-libc = { version = "0.2.185", default-features = false, features = [
+-    'rustc-dep-of-std',
+-], public = true }
++libc = { path = "@LIBC_COSMO_PATH@", default-features = false, features = ["rustc-dep-of-std"], public = true }
+
+ [target.'cfg(all(not(target_os = "aix"), not(all(windows, target_env = "msvc", not(target_vendor = "uwp")))))'.dependencies]
+ object = { version = "0.37.1", default-features = false, optional = true, features = [

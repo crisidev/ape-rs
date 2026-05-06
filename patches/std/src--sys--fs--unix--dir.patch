@@ -1,0 +1,24 @@
+--- a/library/std/src/sys/fs/unix/dir.rs
++++ b/library/std/src/sys/fs/unix/dir.rs
+@@ -42,8 +42,9 @@
+     }
+ 
+     pub fn open_with_c(path: &CStr, opts: &OpenOptions) -> io::Result<Self> {
+-        let flags = libc::O_CLOEXEC
+-            | libc::O_DIRECTORY
++        // SAFETY (cosmo patch): libc::O_CLOEXEC / O_DIRECTORY are extern
++        // statics populated at load time by libcosmo. Reading is always safe.
++        let flags = unsafe { libc::O_CLOEXEC | libc::O_DIRECTORY }
+             | opts.get_access_mode()?
+             | opts.get_creation_mode()?
+             | (opts.custom_flags as c_int & !libc::O_ACCMODE);
+@@ -52,7 +53,8 @@
+     }
+ 
+     fn open_file_c(&self, path: &CStr, opts: &OpenOptions) -> io::Result<File> {
+-        let flags = libc::O_CLOEXEC
++        // SAFETY (cosmo patch): libc::O_CLOEXEC is an extern static.
++        let flags = unsafe { libc::O_CLOEXEC }
+             | opts.get_access_mode()?
+             | opts.get_creation_mode()?
+             | (opts.custom_flags as c_int & !libc::O_ACCMODE);

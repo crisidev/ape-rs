@@ -1,0 +1,15 @@
+--- a/library/std/src/os/unix/net/stream.rs
++++ b/library/std/src/os/unix/net/stream.rs
+@@ -674,7 +674,11 @@
+ #[stable(feature = "unix_socket", since = "1.10.0")]
+ impl<'a> io::Write for &'a UnixStream {
+     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+-        self.0.send_with_flags(buf, MSG_NOSIGNAL)
++        // cosmo patch: MSG_NOSIGNAL is an extern static under
++        // cfg(cosmo) so reading it requires `unsafe`. On other
++        // targets it's a `const` and this wrap is a no-op.
++        #[allow(unused_unsafe)]
++        self.0.send_with_flags(buf, unsafe { MSG_NOSIGNAL })
+     }
+ 
+     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
