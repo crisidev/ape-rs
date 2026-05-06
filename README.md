@@ -12,10 +12,12 @@ client. Development history, journal, and findings live on a separate
 branch in this repo.
 
 For the full story, see the blog series
-[*One Bin to Rule Them All*][blog].
+[*One Bin to Rule Them All*][blog] — start with the
+[first article][blog-1].
 
 [cosmo]: https://github.com/jart/cosmopolitan
 [blog]: https://blog.crisidev.org/tags/series-one-bin-to-rule-them-all/
+[blog-1]: https://blog.crisidev.org/2026-04-24/
 
 * [What's here](#what's-here)
 * [Prerequisites](#prerequisites)
