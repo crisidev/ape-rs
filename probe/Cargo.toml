@@ -1,0 +1,20 @@
+[package]
+name = "probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# Use the same libc that std uses. std's Cargo.toml (rustlib) has been
+# edited to path-depend on /home/bigo/github/ape-rs/libc-cosmo, so both
+# std and probe unify onto our cosmo-patched fork.
+libc = { path = "../libc-cosmo", default-features = false, features = ["rustc-dep-of-std"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = false  # keep symbols — backtrace test needs them
+
+[profile.dev]
+opt-level = 0

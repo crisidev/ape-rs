@@ -1,0 +1,13 @@
+[unstable]
+build-std-features = [""]
+build-std = ["std", "panic_abort", "panic_unwind"]
+
+# Enables cfg(cosmo)-gated overrides in our patched libc fork.
+[build]
+rustflags = ["--cfg=cosmo"]
+
+# NOTE: [patch.crates-io] doesn't propagate to std's libc dep under
+# -Z build-std. Instead, we edit rustup's
+#   .../lib/rustlib/src/rust/library/std/Cargo.toml
+# to point its `libc =` dep at a path. Cargo.toml.orig is preserved for
+# restoration; see offsets/ANALYSIS.md.

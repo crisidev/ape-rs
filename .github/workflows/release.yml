@@ -1,0 +1,94 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build + release fat APEs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install nightly + rust-src
+        run: |
+          rustup install nightly --profile minimal
+          rustup +nightly component add rust-src
+
+      - name: Cache cargo registry + git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache cosmocc toolchain
+        uses: actions/cache@v4
+        with:
+          path: toolchain/cosmocc-4.0.2
+          key: ${{ runner.os }}-cosmocc-4.0.2
+
+      - name: Fetch cosmocc 4.0.2
+        run: ./toolchain/fetch-cosmocc.sh
+
+      - name: Apply std patches
+        run: ./patches/apply.sh
+
+      - name: Build probe
+        run: |
+          export COSMO="$GITHUB_WORKSPACE/toolchain/cosmocc-4.0.2"
+          cd probe && ./build-fat.sh --release
+
+      - name: Build ripgrep
+        run: |
+          export COSMO="$GITHUB_WORKSPACE/toolchain/cosmocc-4.0.2"
+          cd ripgrep && ./build-fat.sh --release
+
+      - name: Build dog
+        run: |
+          export COSMO="$GITHUB_WORKSPACE/toolchain/cosmocc-4.0.2"
+          cd dog && ./build-fat.sh --release
+
+      - name: Build xh
+        run: |
+          export COSMO="$GITHUB_WORKSPACE/toolchain/cosmocc-4.0.2"
+          cd xh && ./build-fat.sh --release
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist
+          cp probe/probe.com   dist/probe.com
+          cp ripgrep/rg.com    dist/rg.com
+          cp dog/dog.com       dist/dog.com
+          cp xh/xh.com         dist/xh.com
+          ls -la dist/
+          file dist/*
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ape-binaries
+          path: dist/*.com
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.com
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -3,7 +3,7 @@
 # ape-rs
 
 Build a Rust binary as a [Cosmopolitan APE][cosmo] (Actually Portable
-Executable) — a single file that runs natively on Linux, macOS,
+Executable). A single file that runs natively on Linux, macOS,
 FreeBSD, OpenBSD, and Windows.
 
 This branch contains the bare minimum to reproduce the build pipeline
@@ -13,16 +13,35 @@ branch in this repo.
 
 [cosmo]: https://github.com/jart/cosmopolitan
 
+* [What's here](#what's-here)
+* [Prerequisites](#prerequisites)
+* [Reproduction](#reproduction)
+    * [1. Clone with submodules](#1.-clone-with-submodules)
+    * [2. Download cosmocc 4.0.2](#2.-download-cosmocc-4.0.2)
+    * [3. Patch the rustup nightly's std sources](#3.-patch-the-rustup-nightly's-std-sources)
+    * [4. Build a workload](#4.-build-a-workload)
+        * [`rust-ape-example` — minimal "hello world"](#`rust-ape-example`-—-minimal-"hello-world")
+        * [`probe` — portability probe](#`probe`-—-portability-probe)
+        * [`ripgrep` — sync grep, full-fat workload](#`ripgrep`-—-sync-grep,-full-fat-workload)
+        * [`dog` — DNS client (sync sockets)](#`dog`-—-dns-client-(sync-sockets))
+        * [`xh` — async HTTP client (partial success)](#`xh`-—-async-http-client-(partial-success))
+* [Running on each host](#running-on-each-host)
+* [Cleaning up](#cleaning-up)
+* [How the patches work](#how-the-patches-work)
+
 ## What's here
 
-- `patches/` — patches applied to a rustup nightly's `std` sources so
+- `patches/`: patches applied to a rustup nightly's `std` sources so
   the standard library compiles against our cosmo-aware `libc`.
-- `toolchain/fetch-cosmocc.sh` — downloads cosmocc 4.0.2.
+- `toolchain/fetch-cosmocc.sh`: downloads cosmocc 4.0.2.
 - Submodules pointing at our forks of every crate that needed
   `cfg(cosmo)` shims:
   - libraries: `libc-cosmo`, `getrandom-cosmo`, `socket2-cosmo`,
     `mio-cosmo`, `tokio-cosmo`
-  - workloads: `rust-ape-example`, `ripgrep`, `dog`, `xh`
+  - workloads: `rust-ape-example`, `probe`, `ripgrep`, `dog`, `xh`
+
+Pre-built fat APE binaries for each tagged release are attached to the
+GitHub release page (built by `.github/workflows/release.yml`).
 
 ## Prerequisites
 
@@ -71,6 +90,17 @@ cd rust-ape-example && ./build-fat.sh --release && cd ..
 
 The simplest reproducer. If this works, the toolchain and patches are
 healthy.
+
+#### `probe` — portability probe
+
+```bash
+cd probe && ./build-fat.sh --release && cd ..
+# produces probe/probe.com
+```
+
+Structured probe of OS surfaces (errno, fs, sockets, threads, time,
+process, panic). Designed to print one line per category — used to
+sanity-check what `std` actually does on each of the six target hosts.
 
 #### `ripgrep` — sync grep, full-fat workload
 
@@ -153,6 +183,4 @@ between Linux/macOS/BSD/Windows, the compile-time constant becomes a
 runtime extern-static (`__cosmo_FOO`) that cosmocc resolves to the
 correct host value at exec time.
 
-For the full story — including dead ends, the TLS wall, and the
-async-IO failure on non-Linux — switch to the `dev` branch and read
-`JOURNAL.md` and `FINDINGS.md`.
+See [patches/README.md](./patches/README.md) for more information.
