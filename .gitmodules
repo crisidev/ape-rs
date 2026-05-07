@@ -1,6 +1,6 @@
 [submodule "rust-ape-example"]
 	path = rust-ape-example
-	url = https://github.com/crisidev/rust-ape-example.git
+	url = https://github.com/ahgamut/rust-ape-example.git
 [submodule "libc-cosmo"]
 	path = libc-cosmo
 	url = https://github.com/crisidev/libc.git
